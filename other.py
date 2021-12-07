@@ -14,9 +14,18 @@ def checkHitBox(mo_x, mo_y, mo_width, mo_height, so_x, so_y, so_width, so_height
     #line 1 start at 1 and end at 5 (line 1 like the stay object)
         #start is like so_x and end is like so_x+so_width
     #if the line 2 want hit the line 1, so line 2 need start in 2 case:
-        #case 1: start lower than 1, but end bigger 1 (mo_x < so_x and mo_x+mo_width > so_x)
+        #case 1: start lower than 1, but end bigger 1 
+        # (mo_x < so_x and mo_x+mo_width > so_x)
         #case 2: start betwen than 1 and 5 and end bigger than 1 (mo_x>so_x and mo_x < so_x+so_width)
 #in all case the first logic is opposite (mo_x < so_x and mo_x > so_x)
 #so i take the second logic mo_x+mo_width > so_x and mo_x < so_x+so_width
 
 #sorry, because my english is so bad :< 
+
+
+def clamp(value, min, max):
+    if value < min:
+        return min
+    if value > max:
+        return max
+    return value
