@@ -6,7 +6,8 @@ class Cupid:
     velocity = pygame.Vector2()
     velocity.xy = 3, 0
     acceleration = 0.1
-    power=1
+    minpower=1
+    maxpower=2
     rightDirection = pygame.image.load('./media/img/cupid.png')
     leftDirection = pygame.transform.flip(rightDirection, True, False)
     currentDirection = rightDirection

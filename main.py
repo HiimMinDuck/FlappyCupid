@@ -1,8 +1,9 @@
 
 import pygame, sys, time, math, colorsys, random
-from pygame.math import Vector2
+
+from pygame.math import Vector2, disable_swizzling
 from pygame.locals import *
-from pygame.surfarray import pixels_red
+
 from background import Background
 from button import Button
 from heart import Heart
@@ -10,7 +11,10 @@ from cupid import Cupid
 from monster import Monster
 from other import checkHitBox
 from other import clamp
+from other import calcu
+from other import calcuDegree
 
+from arrow import Arrow
 def main():
     #intialize the pygame
     pygame.init()
@@ -29,6 +33,7 @@ def main():
     BLACK = (0,0,0)
     PINK = (199,21,133)
     DEEPPINK=(255,105,180)
+    YELLOW=(255,255,0)
     #font
     fontGame2=pygame.font.Font('./media/font/fontGame2.ttf',20)
     fontOpen1= pygame.font.Font('./media/font/fontOpen.ttf', 100)
@@ -63,16 +68,20 @@ def main():
     hearts=[]
     buttons=[]
     monsters=[]
-    #add 3 buttons
-    for i in range(3): 
+    arrows=[]
+
+    #add 4 buttons
+    for i in range(4): 
         buttons.append(Button())
 
     buttons[0].typeIndicatorSprite = pygame.image.load('./media/img/flap_indicator.png')
-    buttons[0].price = 5   
+    buttons[0].price = 10   
     buttons[1].typeIndicatorSprite = pygame.image.load('./media/img/speed_indicator.png')
-    buttons[1].price = 5 
+    buttons[1].price = 10 
     buttons[2].typeIndicatorSprite = pygame.image.load('./media/img/heartup_indicator.png')
     buttons[2].price = 30
+    buttons[3].typeIndicatorSprite = pygame.image.load('./media/img/powerup_indicator.png')
+    buttons[3].price = 50
 
     #add 5 heart
     for i in range(5):
@@ -81,7 +90,19 @@ def main():
     for heart in hearts:
         heart.position.xy = random.randrange(0, DISPLAY.get_width() - heart.img.get_width()), hearts.index(heart)*(-200) - player.position.y
     
+    #add monster
+    for i in range(1):
+        monsters.append(Monster())
 
+    for monster in monsters:
+        monster.position.xy = random.randrange(0,DISPLAY.get_width() - monster.img.get_width()), -1000
+    
+    #add arrow
+    for i in range(1):
+        arrows.append(Arrow())
+
+    for arrow in arrows:
+        arrow.position.xy = 1000,1000
     #background
     bg = [Background(), Background(), Background()]
 
@@ -94,26 +115,29 @@ def main():
     heartMultiplier = 5
     dead = False
     NumOfMonsterSum=1
+    monsterdead= 0
+    aim= False
+    fire=False
+    powerhold=0
+    min = DISPLAY.get_height()
+    id = -1
+    kc = 0
+    degree = 0
+    arrowvelx = 0
+    arrowvely = 0
 
-    for i in range(NumOfMonsterSum):
-        monsters.append(Monster())
-    
-    for monster in monsters:
-        monster.position.xy= 0,0
 
     presentScreenTimer = 0
     while presentScreenTimer < 100:
         dt = time.time() - last_Time
         dt *= FPS
         presentScreenTimer += dt
-        #so the loop presentScreenTimer will run 100>200 times
         for event in pygame.event.get():
             if event.type==QUIT:
                 pygame.quit()
                 sys.exit()
 
         DISPLAY.fill((242, 167, 135))
-        # fill the start message on the top of the game
         presentMessageColor=(217,119,77)
         presentMessage = fontOpen1.render("HiimDuck", True, presentMessageColor)
         presentMessage2= fontOpen2.render("PRESENTS", True, presentMessageColor)
@@ -145,6 +169,7 @@ def main():
             if event.type == QUIT:
                 pygame.quit()
                 sys.exit()
+
         #if user click and click into the button start the game
         if (clicked and checkHitBox(mouseX, mouseY, 3, 3, DISPLAY.get_width()/2 - button1.get_width()/2, 398, button1.get_width(), button1.get_height())):
             clicked = False
@@ -175,15 +200,22 @@ def main():
         last_Time = time.time()
         # again, get the position
         mouseX,mouseY = pygame.mouse.get_pos()
-
+        
         jump = False
         clicked = False
         keys = pygame.key.get_pressed()
         # get events
         for event in pygame.event.get():
             #if user press the left mouse
-            if event.type==pygame.KEYDOWN and event.key==K_SPACE:
+            if event.type==pygame.KEYDOWN and event.key==K_w:
                 jump = True
+            if event.type==pygame.KEYDOWN:
+                if event.key==K_SPACE:
+                    aim = True
+            if event.type==pygame.KEYUP and event.key==K_SPACE:
+                aim = False
+                powerhold = 0
+                fire=True
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 clicked = True
             if clicked and mouseY < DISPLAY.get_height() - 90:
@@ -193,10 +225,16 @@ def main():
                 running = False
                 pygame.quit()
                 sys.exit()
+        
+        if aim == True:
+            powerhold=powerhold+0.2*dt
+        
+
+
 
         camOffset = -player.position.y + DISPLAY.get_height()/2 - player.currentDirection.get_size()[1]/2
         DISPLAY.fill(WHITE)
-        
+
         for o in bg:
             o.setSprite(((player.position.y/50) % 100) / 100)
             DISPLAY.blit(o.sprite, (0, o.position))
@@ -208,17 +246,57 @@ def main():
         for heart in hearts:
             DISPLAY.blit(heart.img, (heart.position.x, heart.position.y + camOffset))
         
+        for monster in monsters:
+            DISPLAY.blit(monster.img, (monster.position.x, monster.position.y + camOffset))
+            healthMonDisplay = fontGame2.render(str(monster.health) + ' HP', True, (0,0,0))
+            DISPLAY.blit(healthMonDisplay,(monster.position.x + (monster.img.get_size()[0]/2) - (healthMonDisplay.get_width()/2), monster.position.y + camOffset + monster.img.get_size()[1]))
+
+        if fire == True:
+            fire = False
+            for monster in monsters:
+                if monsters.index(monster) == id:
+                    degree = calcuDegree(monster.position.x + (monster.img.get_size()[0]/2), monster.position.y  , player.position.x, player.position.y)
+                    arrowvelx = abs(monster.position.x + (monster.img.get_size()[0]/2) - player.position.x)
+                    arrowvely = -abs(monster.position.y - player.position.y)
 
 
+                    if player.velocity.x > 0:
+                        degree = -abs(degree)
+                        arrowvelx = abs(arrowvelx)
+                    else: 
+                        degree= abs(degree)
+                        arrowvelx = -abs(arrowvelx)
+                else:
+                    degree = 0
+                    arrowvelx = 0
+                    arrowvely = 0
             
+            arrows.append(Arrow())
+            for arrow in arrows:
+                arrows[-1].position.x = player.position.x
+                arrows[-1].position.y = player.position.y
+                arrows[-1].degree = degree
+                arrows[-1].velocity.x = arrowvelx/50
+                arrows[-1].velocity.y = arrowvely/50
+
+        for arrow in arrows:
+            arrow.position.x += arrow.velocity.x*dt
+            arrow.position.y += arrow.velocity.y*dt
+            DISPLAY.blit(pygame.transform.rotate(arrow.img , arrow.degree), (arrow.position.x, arrow.position.y + camOffset))     
 
 
         DISPLAY.blit(pygame.transform.rotate(player.currentDirection, clamp(player.velocity.y, -10, 5)*rotOffset), (player.position.x,player.position.y + camOffset))
         
-        DISPLAY.blit(shop_bg, (0, a))
+        DISPLAY.blit(shop_bg, (0, 0))
         pygame.draw.rect(DISPLAY,DEEPPINK,(21,437+a,150*(health/100),25))
-       
+
+        pygame.draw.rect(DISPLAY,YELLOW,(716,437+a,71*(powerhold/50),27))
         DISPLAY.blit(shop, (0, 0))
+
+        minpowerDisplay= fontGame.render(str(player.minpower),True,(0,0,0))
+        DISPLAY.blit(minpowerDisplay, (710,530))
+        maxpowerDisplay= fontGame.render(str(player.maxpower),True,(0,0,0))
+        DISPLAY.blit(maxpowerDisplay, (780,530))
 
         for button in buttons:
             DISPLAY.blit(button.sprite, (220 + (buttons.index(button)*125), 393+a))
@@ -235,6 +313,7 @@ def main():
 
         heartCountDisplay = fontGame.render(str(heartCount).zfill(7), True, (0,0,0))
         DISPLAY.blit(heartCountDisplay, (72, 397+a))
+
 
 
         if dead:
@@ -264,15 +343,18 @@ def main():
         player.position.y += player.velocity.y*dt
         player.velocity.y = clamp(player.velocity.y + player.acceleration*dt, -99999999999, 50)
 
-        health -= 0.2*dt
-
+        #health -= 0.2*dt
+        health = 100
         if health <= 0 and not dead:
             dead = True
             pygame.mixer.Sound.play(deadfx)
 
+        for arrow in arrows:
+            if arrow.position.y + camOffset > DISPLAY.get_height():
+                arrows.pop(arrows.index(arrow))
+
         for heart in hearts:
             if heart.position.y + camOffset  > DISPLAY.get_height():
-
                 heart.position.y -= DISPLAY.get_height()*2
                 heart.position.x = random.randrange(0, DISPLAY.get_width() - heart.img.get_width())
 
@@ -282,7 +364,45 @@ def main():
                 health = 100
                 heart.position.y -= DISPLAY.get_height() - random.randrange(0, 200)
                 heart.position.x = random.randrange(0, DISPLAY.get_width() - heart.img.get_width())
-            
+
+        for monster in monsters:
+            if monster.position.y + camOffset > DISPLAY.get_height():
+                monsterdead += 1
+                monster.position.x = random.randrange(0, DISPLAY.get_width() - monster.img.get_width())
+                monster.position.y = monster.position.y - DISPLAY.get_height()*random.randrange(11 - (height % 10) , 20)
+
+            if monsterdead == 4:
+                monster.maxhealth += 1
+                monster.health += 1
+                monsterdead = 0
+
+            if player.velocity.x > 0:
+                if monster.position.x > player.position.x:
+                    kc = calcu(monster.position.x,monster.position.y ,player.position.x,player.position.y)
+                    if min > kc:
+                        min = kc
+                        id = monsters.index(monster)
+
+                if monsters.index(monster) == id:
+                    monster.checkTarget('target')
+                    if monster.position.x < player.position.x or player.position.y < monster.position.y:
+                        monster.checkTarget('untarget')
+                        id = -1
+                        min = DISPLAY.get_height()
+            if player.velocity.x < 0:
+                if monster.position.x < player.position.x:
+                    kc = calcu(monster.position.x,monster.position.y  ,player.position.x,player.position.y )
+                    if min > kc:
+                        min = kc
+                        id = monsters.index(monster)
+
+                if monsters.index(monster) == id:
+                    monster.checkTarget('target')
+                    if monster.position.x > player.position.x or player.position.y < monster.position.y:
+                        monster.checkTarget('untarget')
+                        id = -1    
+                        min = DISPLAY.get_height()
+
         for button in buttons:
             buttonX,buttonY = 220 + (buttons.index(button)*125), 393+a
             
@@ -291,47 +411,52 @@ def main():
                     pygame.mixer.Sound.play(upgradefx)
                     button.level += 1
                     heartCount -= button.price
-                    button.price = round(button.price*2.5)
+                    button.price = round(button.price*3)
                     if (buttons.index(button) == 0):
-                        flapForce *= 1.5
+                        flapForce *= 1.1
                     if (buttons.index(button) == 1):
-                        player.velocity.x *= 1.5
+                        player.velocity.x *= 1.1
                     if (buttons.index(button) == 2):
-                        heartMultiplier += 10
+                        heartMultiplier += 1
                         for i in range(heartMultiplier):
                             hearts.append(Heart())
                             hearts[-1].position.xy = random.randrange(0, DISPLAY.get_width() - heart.img.get_width()), player.position.y - DISPLAY.get_height() - random.randrange(0, 200)
-                    #break
-                    
+                    if (buttons.index(button) == 3):
+                        player.minpower = player.minpower+1
+                        player.maxpower = round(player.minpower*2.5) + 1
 
-            if dead and clicked and checkHitBox(mouseX, mouseY, 3, 3, (4+(DISPLAY.get_width()/2 - retry_button.get_width()/2)), 4+(DISPLAY.get_height()/2 +50), retry_button.get_width(), retry_button.get_height()):
-                health = 100
-                player.velocity.xy = 3, 0
-                player.position.xy = 295, 100
-                player.currentDirection = player.rightDirection
-                heartCount = 0
-                height = 0
-                flapForce = 3
-                heartMultiplier = 5
-                buttons = []
-                for i in range(3): buttons.append(Button())
-                buttons[0].typeIndicatorSprite = pygame.image.load('./media/img/flap_indicator.png')
-                buttons[0].price = 5   
-                buttons[1].typeIndicatorSprite = pygame.image.load('./media/img/speed_indicator.png')
-                buttons[1].price = 5 
-                buttons[2].typeIndicatorSprite = pygame.image.load('./media/img/heartup_indicator.png')
-                buttons[2].price = 30
-                hearts = []
-                for i in range(5): hearts.append(Heart())
-                for heart in hearts:
-                    heart.position.xy = random.randrange(0, DISPLAY.get_width() - heart.img.get_width()), hearts.index(heart)*-200 - player.position.y
-                pygame.mixer.Sound.play(upgradefx)
-                dead = False         
+        heartCount=999999
+            
+
+
+        if dead == True and clicked and checkHitBox(mouseX, mouseY, 3, 3, ((DISPLAY.get_width()/2 - retry_button.get_width()/2)), (DISPLAY.get_height()/2 - 50), retry_button.get_width(), retry_button.get_height()):
+            health = 100
+            player.velocity.xy = 3, 0
+            player.position.xy = 295, 100
+            player.currentDirection = player.rightDirection
+            heartCount = 0
+            height = 0
+            flapForce = 3
+            heartMultiplier = 5
+            buttons = []
+            for i in range(3): buttons.append(Button())
+            buttons[0].typeIndicatorSprite = pygame.image.load('./media/img/flap_indicator.png')
+            buttons[0].price = 5   
+            buttons[1].typeIndicatorSprite = pygame.image.load('./media/img/speed_indicator.png')
+            buttons[1].price = 5 
+            buttons[2].typeIndicatorSprite = pygame.image.load('./media/img/heartup_indicator.png')
+            buttons[2].price = 30
+            hearts = []
+            for i in range(5): hearts.append(Heart())
+            for heart in hearts:
+                heart.position.xy = random.randrange(0, DISPLAY.get_width() - heart.img.get_width()), hearts.index(heart)*-200 - player.position.y
+            pygame.mixer.Sound.play(upgradefx)
+            dead = False         
 
             
-            bg[0].position = camOffset + round(player.position.y/DISPLAY.get_height())*DISPLAY.get_height()
-            bg[1].position = bg[0].position + DISPLAY.get_height() 
-            bg[2].position = bg[0].position - DISPLAY.get_height()
+        bg[0].position = camOffset + round(player.position.y/DISPLAY.get_height())*DISPLAY.get_height()
+        bg[1].position = bg[0].position + DISPLAY.get_height() 
+        bg[2].position = bg[0].position - DISPLAY.get_height()
 
         pygame.display.update()
         #pygame.time.delay(10)

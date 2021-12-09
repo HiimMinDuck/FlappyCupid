@@ -1,6 +1,7 @@
 #mo=moveObject
 #so=stayObject
 #x,y is position of object
+import math
 
 def checkHitBox(mo_x, mo_y, mo_width, mo_height, so_x, so_y, so_width, so_height):
     if(mo_x + mo_width > so_x) and (mo_x < so_x + so_width) and (mo_y + mo_height > so_y) and (mo_y < so_y + so_height):
@@ -29,3 +30,10 @@ def clamp(value, min, max):
     if value > max:
         return max
     return value
+
+def calcu(mo_x,mo_y,cu_x,cu_y):
+    return math.sqrt(pow((mo_x-cu_x),2)+pow((cu_y-mo_y),2))
+
+def calcuDegree(mo_x,mo_y,cu_x,cu_y):
+    return math.degrees(math.atan(abs(mo_x-cu_x)/abs(cu_y-mo_y)))
+
